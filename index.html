@@ -1,0 +1,1842 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>比赛信息管理</title>
+    <!-- 添加xlsx库 -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.19.3/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 10px;
+            font-size: 16px;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            text-align: center;
+        }
+
+        .search-container {
+            margin-bottom: 15px;
+            display: flex;
+            gap: 5px;
+        }
+
+        .search-container input {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        .search-container button {
+            padding: 8px 15px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .import-container {
+            margin-bottom: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            align-items: center;
+        }
+
+        .import-container input[type="file"] {
+            flex: 1;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            min-width: 200px;
+        }
+
+        /* 移动设备上的文件输入样式优化 */
+        @media screen and (max-width: 768px) {
+            .import-container {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .import-container label {
+                margin-bottom: 5px;
+                font-size: 16px;
+                font-weight: bold;
+            }
+
+            .import-container input[type="file"] {
+                width: 100%;
+                padding: 12px 8px;
+                margin-bottom: 10px;
+                font-size: 16px;
+                opacity: 0.01; /* 隐藏原生文件输入控件，但保持可以点击 */
+                position: absolute;
+                height: 1px;
+            }
+
+            .import-container button {
+                padding: 12px 15px;
+                margin: 5px 0;
+                font-size: 16px;
+            }
+
+            .file-select-btn {
+                display: block;
+                width: 100%;
+                padding: 15px !important;
+                font-size: 16px !important;
+                text-align: center;
+                background-color: #2196F3 !important;
+                color: white;
+                border-radius: 4px;
+                margin: 10px 0 !important;
+            }
+
+            .file-input-help {
+                display: block;
+                font-size: 13px;
+                color: #666;
+                margin-top: 5px;
+                margin-bottom: 10px;
+                line-height: 1.4;
+            }
+
+            /* 移动设备上的模态框样式 */
+            .modal-content {
+                width: 95%;
+                margin: 5% auto;
+                max-height: 90vh;
+            }
+
+            .modal-header h2 {
+                font-size: 1.3rem;
+            }
+
+            .modal-body {
+                max-height: 70vh;
+                padding: 15px;
+            }
+
+            .form-group {
+                margin-bottom: 20px;
+            }
+
+            .form-group label {
+                font-size: 16px;
+                margin-bottom: 8px;
+            }
+
+            .form-control {
+                font-size: 16px; /* 增大字体大小，便于触摸输入 */
+                padding: 12px;
+                margin-bottom: 8px;
+                height: auto;
+            }
+
+            textarea.form-control {
+                min-height: 80px;
+            }
+
+            .file-item {
+                padding: 10px;
+                background-color: #f9f9f9;
+                border-radius: 4px;
+                margin-bottom: 12px;
+                border: 1px solid #eee;
+            }
+
+            .file-item input {
+                margin-bottom: 10px;
+                padding: 12px;
+                font-size: 16px;
+            }
+
+            .file-item button {
+                width: 100%;
+                padding: 10px;
+                margin-top: 5px;
+            }
+
+            .add-file-btn {
+                width: 100%;
+                padding: 12px !important;
+                font-size: 16px !important;
+                margin: 10px 0;
+            }
+
+            .modal-footer {
+                padding: 15px;
+                flex-direction: column;
+            }
+
+            .modal-footer button {
+                padding: 14px 20px;
+                font-size: 16px;
+                width: 100%;
+                margin: 5px 0;
+            }
+        }
+
+        /* 选项卡样式 */
+        .tabs-container {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            padding: 10px 20px;
+            background-color: #f2f2f2;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            color: #333;
+            transition: all 0.3s ease;
+        }
+
+        .tab-btn.active {
+            background-color: #4CAF50;
+            color: white;
+            border-color: #4CAF50;
+        }
+
+        .tab-btn:hover {
+            background-color: #e0e0e0;
+        }
+
+        .tab-btn.active:hover {
+            background-color: #3e8e41;
+        }
+
+        /* 模态框样式 */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 5% auto;
+            padding: 0;
+            border: 1px solid #888;
+            border-radius: 8px;
+            width: 80%;
+            max-width: 700px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+            animation: modalopen 0.3s;
+        }
+
+        @keyframes modalopen {
+            from {opacity: 0; transform: translateY(-50px);}
+            to {opacity: 1; transform: translateY(0);}
+        }
+
+        .modal-header {
+            padding: 15px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+
+        .close {
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .close:hover {
+            color: #f1f1f1;
+        }
+
+        .modal-body {
+            padding: 20px;
+            max-height: 70vh;
+            overflow-y: auto;
+        }
+
+        .modal-footer {
+            padding: 15px 20px;
+            background-color: #f9f9f9;
+            border-top: 1px solid #ddd;
+            border-bottom-left-radius: 8px;
+            border-bottom-right-radius: 8px;
+            text-align: right;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+
+        .required {
+            color: red;
+        }
+
+        .add-file-btn {
+            margin-top: 10px;
+            background-color: #2196F3;
+        }
+
+        .files-container {
+            margin-bottom: 10px;
+        }
+
+        /* 文件项样式 */
+        .file-item {
+            margin-bottom: 15px;
+            padding: 10px;
+            border: 1px solid #eee;
+            border-radius: 4px;
+            background-color: #f9f9f9;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+        }
+
+        .file-item {
+            margin-bottom: 8px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 6px;
+            margin-bottom: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        button {
+            padding: 6px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 2px;
+        }
+
+        button.delete-btn {
+            background-color: #f44336;
+        }
+
+        button.edit-btn {
+            background-color: #2196F3;
+        }
+
+        button.cancel-btn {
+            background-color: #ff9800;
+        }
+
+        .no-data {
+            color: #999;
+            font-style: italic;
+        }
+
+        /* 操作栏样式 */
+        .operation-column {
+            position: relative;
+            white-space: nowrap;
+            text-align: center;
+            background-color: #f9f9f9;
+            min-width: 150px;
+        }
+
+        .operation-column button {
+            margin: 2px;
+            min-width: 60px;
+        }
+
+        .save-btn {
+            background-color: #4CAF50;
+        }
+
+        .edit-btn {
+            background-color: #2196F3;
+        }
+
+        .delete-btn {
+            background-color: #f44336;
+        }
+
+        /* 链接按钮样式 */
+        a.btn-link {
+            display: inline-block;
+            padding: 4px 8px;
+            background-color: #2196F3;
+            color: white !important;
+            text-decoration: none;
+            border-radius: 4px;
+            font-size: 14px;
+            margin: 2px;
+        }
+
+        a.btn-link:hover {
+            background-color: #0b7dda;
+        }
+
+        /* 编辑模式和查看模式的样式 */
+        td.view-mode a {
+            color: #0066cc;
+            text-decoration: none;
+        }
+
+        td.view-mode a:hover {
+            text-decoration: underline;
+        }
+
+        /* 移动端响应式样式 */
+        @media screen and (max-width: 768px) {
+            /* 表格转为响应式卡片视图 */
+            table, thead, tbody, th, td, tr {
+                display: block;
+            }
+
+            /* 隐藏表头 */
+            thead tr {
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+            }
+
+            /* 给每行添加边框和间距 */
+            tbody tr {
+                margin-bottom: 15px;
+                border: 1px solid #ddd;
+                border-radius: 4px;
+            }
+
+            /* 添加伪元素显示列名 */
+            td {
+                position: relative;
+                padding-left: 40%;
+                border: none;
+                border-bottom: 1px solid #eee;
+            }
+
+            /* 修复操作栏在移动端的显示 */
+            td.operation-column {
+                padding: 10px;
+                text-align: center;
+                border-top: 1px solid #ddd;
+            }
+
+            td.operation-column:before {
+                display: none; /* 移除操作列的伪元素标签 */
+            }
+
+            td.operation-column button {
+                margin: 5px;
+                padding: 8px 15px;
+                font-size: 14px;
+            }
+
+            td:before {
+                position: absolute;
+                left: 10px;
+                width: 35%;
+                white-space: nowrap;
+                font-weight: bold;
+            }
+
+            /* 为每个单元格添加标签 */
+            td:nth-of-type(1):before { content: "选择"; }
+            td:nth-of-type(2):before { content: "关注"; }
+            td:nth-of-type(3):before { content: "类别"; }
+            td:nth-of-type(4):before { content: "名称"; }
+            td:nth-of-type(5):before { content: "官网"; }
+            td:nth-of-type(6):before { content: "报名时间"; }
+            td:nth-of-type(7):before { content: "比赛时间"; }
+            td:nth-of-type(8):before { content: "文件"; }
+            td:nth-of-type(9):before { content: "描述"; }
+            td:nth-of-type(10):before { content: "操作"; }
+
+            /* 底部添加行的特殊处理 */
+            tfoot tr {
+                margin-top: 20px;
+                border: 2px solid #4CAF50;
+                border-radius: 4px;
+                background-color: #f9f9f9;
+            }
+
+            tfoot td:first-child:before {
+                content: "新增";
+                font-size: 1.2em;
+                color: #4CAF50;
+            }
+
+            /* 其他元素的响应式调整 */
+            .file-item {
+                margin-top: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>比赛信息管理系统</h1>
+
+    <!-- 视图切换选项卡 -->
+    <div class="tabs-container" style="margin-bottom: 15px; text-align: center;">
+        <button id="allTab" class="tab-btn active" onclick="switchTab('all')">所有比赛</button>
+        <button id="starredTab" class="tab-btn" onclick="switchTab('starred')">收藏比赛</button>
+    </div>
+
+    <!-- 搜索 -->
+    <div class="search-container">
+        <input type="text" id="search" placeholder="搜索比赛">
+        <button onclick="searchCompetitions()">搜索</button>
+    </div>
+
+    <!-- Excel导入 -->
+    <div class="import-container">
+        <label for="excelFile">从Excel导入数据：</label>
+        <input type="file" id="excelFile" accept=".xlsx, .xls, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel">
+        <button type="button" onclick="document.getElementById('excelFile').click()" class="file-select-btn" id="mobileFileSelectBtn" style="display: none; margin-top: 5px; width: 100%; padding: 12px; background-color: #2196F3;">点击选择Excel文件</button>
+        <span class="file-input-help">点击上方按钮选择Excel文件，在手机上可能需要先将文件保存到手机或云盘</span>
+        <div>
+            <button onclick="importFromExcel()" style="margin-right: 5px;">导入</button>
+            <button onclick="deleteImportedData()" class="delete-btn">删除导入数据</button>
+        </div>
+    </div>
+
+    <!-- 移动设备提示 -->
+    <div id="mobileFileHelp" style="display: none; margin-bottom: 15px; padding: 10px; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 4px;">
+        <h3 style="margin-top: 0; color: #333;">在手机上导入Excel文件的步骤：</h3>
+        <ol style="padding-left: 20px; margin-bottom: 0;">
+            <li>确保您的Excel文件已保存在手机上（例如从邮件或微信下载）</li>
+            <li>点击“选择文件”按钮</li>
+            <li>如果只显示摄像头选项，请点击取消，然后再次点击选择文件按钮</li>
+            <li>在弹出的选项中，选择“文档”、“浏览”或“文件管理器”</li>
+            <li>寻找并选择您的Excel文件（.xlsx或.xls格式）</li>
+            <li>点击“导入”按钮开始导入数据</li>
+        </ol>
+        <div style="margin-top: 10px; padding: 8px; background-color: #fff3cd; border: 1px solid #ffeeba; border-radius: 4px;">
+            <strong>提示：</strong> 如果您使用的是安卓手机，可能需要先在设置中允许浏览器访问文件权限。如果您使用的是iPhone，可以尝试从“文件”应用中选择文件。
+        </div>
+    </div>
+
+    <!-- 批量操作和新增按钮 -->
+    <div class="batch-operation-container" style="margin-bottom: 15px; display: flex; justify-content: space-between;">
+        <div>
+            <button onclick="batchDeleteCompetitions()" class="delete-btn">批量删除</button>
+        </div>
+        <div>
+            <button onclick="showAddCompetitionModal()" class="add-btn" style="background-color: #4CAF50;">新增比赛</button>
+        </div>
+    </div>
+
+    <!-- 比赛表格 -->
+    <table>
+        <thead>
+            <tr>
+                <th><input type="checkbox" id="selectAll" onclick="toggleSelectAll()" title="全选/取消全选"></th>
+                <th>关注</th>
+                <th>比赛类别</th>
+                <th>比赛名称</th>
+                <th>官网</th>
+                <th>报名时间</th>
+                <th>比赛时间</th>
+                <th>比赛文件</th>
+                <th>比赛描述</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody id="competitionBody">
+            <!-- 内容由JS生成 -->
+        </tbody>
+    </table>
+
+    <!-- 新增比赛模态框 -->
+    <div id="addCompetitionModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close" onclick="closeAddCompetitionModal()">&times;</span>
+                <h2>新增比赛</h2>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="newCategory">比赛类别</label>
+                    <select id="newCategory" class="form-control">
+                        <option value="">请选择</option>
+                        <option value="一类竞赛">一类竞赛</option>
+                        <option value="二类竞赛">二类竞赛</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="newName">比赛名称 <span class="required">*</span></label>
+                    <input type="text" id="newName" class="form-control" placeholder="请输入比赛名称">
+                </div>
+                <div class="form-group">
+                    <label for="newWebsite">官网链接</label>
+                    <input type="text" id="newWebsite" class="form-control" placeholder="请输入官网链接">
+                </div>
+                <div class="form-group">
+                    <label for="newSignupTime">报名时间</label>
+                    <input type="text" id="newSignupTime" class="form-control" placeholder="如：2023-09-01 至 2023-09-10">
+                </div>
+                <div class="form-group">
+                    <label for="newCompetitionTime">比赛时间</label>
+                    <input type="text" id="newCompetitionTime" class="form-control" placeholder="如：2023-10-01 至 2023-10-05">
+                </div>
+                <div class="form-group">
+                    <label>比赛文件</label>
+                    <div id="newFiles" class="files-container">
+                        <!-- 文件输入字段将由JS生成 -->
+                    </div>
+                    <button onclick="addFileInput('newFiles')" class="add-file-btn">添加文件</button>
+                </div>
+                <div class="form-group">
+                    <label for="newDesc">比赛描述</label>
+                    <textarea id="newDesc" class="form-control" placeholder="请输入比赛描述"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button onclick="closeAddCompetitionModal()" class="cancel-btn">取消</button>
+                <button onclick="addCompetition()" class="save-btn">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 初始数据
+        let competitions = [
+            {
+                id: 1,
+                category: "一类竞赛",
+                name: "篮球锦标赛",
+                website: "https://basketball.example.com",
+                signupTime: "2023-09-01 至 2023-09-10",
+                competitionTime: "2023-10-15 至 2023-10-20",
+                files: [
+                    {url: "https://example.com/basketball.pdf", desc: "篮球赛规则.pdf"},
+                    {url: "https://example.com/basketball-schedule.doc", desc: "篮球赛日程.doc"}
+                ],
+                desc: "全国高校篮球锦标赛",
+                starred: false
+            },
+            {
+                id: 2,
+                category: "二类竞赛",
+                name: "足球友谊赛",
+                website: "https://football.example.com",
+                signupTime: "2023-09-15 至 2023-09-25",
+                competitionTime: "2023-11-01 至 2023-11-05",
+                files: [
+                    {url: "https://example.com/football.doc", desc: "足球比赛安排.doc"}
+                ],
+                desc: "校际足球友谊比赛",
+                starred: false
+            }
+        ];
+
+        // 从Excel导入数据
+        function importFromExcel() {
+            const fileInput = document.getElementById('excelFile');
+            const file = fileInput.files[0];
+
+            if (!file) {
+                let message = '请先选择Excel文件';
+
+                if (isMobileDevice()) {
+                    if (isAndroidDevice()) {
+                        message += '\n\n在安卓手机上：\n' +
+                                 '1. 点击上方的“点击选择Excel文件”按钮\n' +
+                                 '2. 如果出现权限请求，请允许访问文件\n' +
+                                 '3. 选择“文档”或“文件管理器”\n' +
+                                 '4. 寻找并选择您的Excel文件';
+                    } else if (isIOSDevice()) {
+                        message += '\n\n在iPhone/iPad上：\n' +
+                                 '1. 点击上方的“点击选择Excel文件”按钮\n' +
+                                 '2. 选择“浏览”或“文件”选项\n' +
+                                 '3. 寻找并选择您的Excel文件';
+                    } else {
+                        message += '\n\n在移动设备上：\n' +
+                                 '1. 点击上方的“点击选择Excel文件”按钮\n' +
+                                 '2. 选择文件管理器或文档应用\n' +
+                                 '3. 寻找并选择您的Excel文件';
+                    }
+                }
+
+                alert(message);
+
+                // 如果是移动设备，自动触发文件选择按钮的点击
+                if (isMobileDevice()) {
+                    document.getElementById('mobileFileSelectBtn').click();
+                }
+
+                return;
+            }
+
+            // 检查文件类型
+            const fileType = file.type;
+            const fileName = file.name.toLowerCase();
+
+            console.log('选择的文件类型:', fileType, '文件名:', fileName);
+
+            // 宽松的文件类型检查，主要依赖文件名后缀
+            if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
+                // 如果文件名不符合，但MIME类型符合，仍然允许
+                if (fileType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+                    fileType === 'application/vnd.ms-excel' ||
+                    fileType === 'application/octet-stream') { // 某些移动设备可能返回这个通用类型
+                    console.log('文件名不符合要求，但MIME类型可接受，尝试处理');
+                } else {
+                    alert('请选择有效的Excel文件 (.xlsx 或 .xls 格式)\n\n您选择的文件类型是: ' + (fileType || '未知') + '\n文件名: ' + fileName);
+                    return;
+                }
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+
+                    const firstSheet = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheet];
+
+                    // 获取行数据
+                    const rows = XLSX.utils.sheet_to_json(worksheet, {header: 1, raw: false});
+
+                    if (rows.length < 2) {
+                        alert('Excel文件内容不足，至少需要表头和一行数据');
+                        return;
+                    }
+
+                    // 获取表头
+                    const headers = rows[0];
+
+                    // 查找并映射列索引
+                    let nameColIndex = -1;
+                    let categoryColIndex = -1;
+                    let websiteColIndex = -1;
+                    let signupTimeColIndex = -1;
+                    let competitionTimeColIndex = -1;
+                    let fileColIndex = -1;
+                    let descColIndex = -1;
+
+                    // 优先检查常见的列名映射
+                    headers.forEach((header, index) => {
+                        if (!header) return;
+
+                        const headerText = String(header).trim().toLowerCase();
+
+                        // 检查名称列 - 优先检查"竞赛全称"作为名称
+                        if (headerText.includes('全称') || headerText.includes('名称') || headerText.includes('赛事名称') ||
+                            headerText === '名称' || headerText === '比赛名称' || headerText === '赛事' ||
+                            headerText === '竞赛名称' || headerText === '竞赛全称') {
+                            nameColIndex = index;
+                        }
+                        // 检查类别列
+                        else if (headerText.includes('类别') || headerText.includes('类型') ||
+                                 headerText === '分类' || headerText === '比赛类别' || headerText === '竞赛类别') {
+                            categoryColIndex = index;
+                        }
+                        // 检查官网列
+                        else if (headerText.includes('官网') || headerText.includes('链接') || headerText.includes('官方网站') ||
+                                 headerText === '网址' || headerText === '比赛网址' || headerText === '官网链接') {
+                            websiteColIndex = index;
+                        }
+                        // 检查报名时间列
+                        else if (headerText.includes('报名时间') || headerText.includes('报名日期') ||
+                                 headerText === '报名') {
+                            signupTimeColIndex = index;
+                        }
+                        // 检查比赛时间列
+                        else if (headerText.includes('比赛时间') || headerText.includes('竞赛时间') ||
+                                 headerText.includes('举办时间') || headerText === '时间') {
+                            competitionTimeColIndex = index;
+                        }
+                        // 检查文件列
+                        else if (headerText.includes('文件') || headerText.includes('附件') ||
+                                 headerText === '比赛文件' || headerText === '资料' || headerText === '附加资料') {
+                            fileColIndex = index;
+                        }
+                        // 检查描述列
+                        else if (headerText.includes('描述') || headerText.includes('说明') ||
+                                 headerText === '比赛描述' || headerText === '详情' || headerText === '内容简介') {
+                            descColIndex = index;
+                        }
+                    });
+
+                    // 如果没有找到名称列，尝试使用首列作为名称
+                    if (nameColIndex === -1 && headers.length > 0) {
+                        nameColIndex = 0;
+                        console.log('未找到明确的名称列，使用第一列作为名称列');
+                    }
+
+                    console.log('检测到的列映射:', {
+                        名称列: nameColIndex >= 0 ? headers[nameColIndex] : '未找到',
+                        类别列: categoryColIndex >= 0 ? headers[categoryColIndex] : '未找到',
+                        官网列: websiteColIndex >= 0 ? headers[websiteColIndex] : '未找到',
+                        报名时间列: signupTimeColIndex >= 0 ? headers[signupTimeColIndex] : '未找到',
+                        比赛时间列: competitionTimeColIndex >= 0 ? headers[competitionTimeColIndex] : '未找到',
+                        文件列: fileColIndex >= 0 ? headers[fileColIndex] : '未找到',
+                        描述列: descColIndex >= 0 ? headers[descColIndex] : '未找到'
+                    });
+
+                    if (nameColIndex === -1) {
+                        alert('导入失败：未能识别比赛名称列，请确保Excel中包含"名称"、"竞赛全称"或类似列');
+                        return;
+                    }
+
+                    // 处理数据行
+                    const newCompetitions = [];
+
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i];
+
+                        // 跳过空行
+                        if (!row.length || !row[nameColIndex]) {
+                            console.log(`跳过第${i+1}行: 无名称数据`);
+                            continue;
+                        }
+
+                        try {
+                            const competition = {
+                                id: Date.now() + i, // 使用时间戳+行号作为唯一ID
+                                name: row[nameColIndex] ? String(row[nameColIndex]).trim() : '',
+                                category: categoryColIndex >= 0 && row[categoryColIndex] ? String(row[categoryColIndex]).trim() : '',
+                                website: websiteColIndex >= 0 && row[websiteColIndex] ? String(row[websiteColIndex]).trim() : '',
+                                signupTime: signupTimeColIndex >= 0 && row[signupTimeColIndex] ? String(row[signupTimeColIndex]).trim() : '',
+                                competitionTime: competitionTimeColIndex >= 0 && row[competitionTimeColIndex] ? String(row[competitionTimeColIndex]).trim() : '',
+                                desc: descColIndex >= 0 && row[descColIndex] ? String(row[descColIndex]).trim() : '',
+                                files: [],
+                                starred: false
+                            };
+
+                            // 处理报名时间
+                            if (signupTimeColIndex >= 0 && row[signupTimeColIndex]) {
+                                competition.signupTime = String(row[signupTimeColIndex]).trim();
+                            }
+
+                            // 处理比赛时间
+                            if (competitionTimeColIndex >= 0 && row[competitionTimeColIndex]) {
+                                competition.competitionTime = String(row[competitionTimeColIndex]).trim();
+                            }
+
+                            // 处理文件链接
+                            if (fileColIndex >= 0 && row[fileColIndex]) {
+                                const fileStr = String(row[fileColIndex]).trim();
+
+                                // 尝试识别多个链接，可能由逗号、分号或换行符分隔
+                                if (fileStr.includes(',') || fileStr.includes(';') || fileStr.includes('\n')) {
+                                    const separators = [',', ';', '\n'];
+                                    let separator = null;
+
+                                    // 确定使用哪个分隔符
+                                    for (const sep of separators) {
+                                        if (fileStr.includes(sep)) {
+                                            separator = sep;
+                                            break;
+                                        }
+                                    }
+
+                                    if (separator) {
+                                        const links = fileStr.split(separator);
+                                        links.forEach(item => {
+                                            if (item.trim()) {
+                                                competition.files.push({
+                                                    url: item.trim(),
+                                                    desc: ''
+                                                });
+                                            }
+                                        });
+                                    }
+                                } else {
+                                    // 单个链接
+                                    competition.files.push({
+                                        url: fileStr,
+                                        desc: ''
+                                    });
+                                }
+                            }
+
+                            // 如果文件解析后为空，但原字段有内容，则将整个内容作为描述添加
+                            if (competition.files.length === 0 && fileColIndex >= 0 && row[fileColIndex]) {
+                                const fileStr = String(row[fileColIndex]).trim();
+                                if (fileStr) {
+                                    competition.files.push({
+                                        url: '',
+                                        desc: fileStr
+                                    });
+                                }
+                            }
+
+                            newCompetitions.push(competition);
+                            console.log(`成功处理第${i+1}行:`, competition);
+                        } catch (error) {
+                            console.error(`处理第${i+1}行数据时出错:`, error, row);
+                        }
+                    }
+
+                    // 更新数据并保存
+                    if (newCompetitions.length > 0) {
+                        competitions = newCompetitions;
+                        localStorage.setItem('competitionData', JSON.stringify(competitions));
+                        renderTable();
+                        alert(`成功导入 ${newCompetitions.length} 条比赛数据`);
+                        fileInput.value = ''; // 清空文件输入
+                    } else {
+                        alert('导入数据失败，未能识别有效的比赛数据。请检查Excel格式，确保至少有"比赛名称"列。');
+                    }
+                } catch (error) {
+                    console.error('Excel处理错误:', error);
+                    alert('处理Excel文件时出错: ' + error.message);
+                }
+            };
+
+            reader.onerror = function(event) {
+                console.error('文件读取错误:', event);
+                alert('读取文件时出错\n\n错误详情: ' + (event.target.error ? event.target.error.message : '未知错误') +
+                      '\n\n如果您在手机上使用，请确保文件可以正常访问。');
+            };
+
+            try {
+                // 显示加载中提示
+                alert('正在加载文件，请稍候...');
+                reader.readAsArrayBuffer(file);
+            } catch (error) {
+                console.error('读取文件异常:', error);
+                alert('读取文件时出现异常: ' + error.message +
+                      '\n\n请确保您选择的是有效的Excel文件。');
+            }
+        }
+
+        // 检测是否为移动设备
+        function isMobileDevice() {
+            return (window.innerWidth <= 768) ||
+                   /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
+
+        // 检测是否为安卓设备
+        function isAndroidDevice() {
+            return /Android/i.test(navigator.userAgent);
+        }
+
+        // 检测是否为iOS设备
+        function isIOSDevice() {
+            return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        }
+
+        // 复制文本到剪贴板
+        function copyToClipboard(text) {
+            // 创建一个对话框，显示链接并允许用户手动复制
+            function showCopyDialog(textToCopy) {
+                // 创建对话框元素
+                const dialogOverlay = document.createElement('div');
+                dialogOverlay.style.position = 'fixed';
+                dialogOverlay.style.top = '0';
+                dialogOverlay.style.left = '0';
+                dialogOverlay.style.width = '100%';
+                dialogOverlay.style.height = '100%';
+                dialogOverlay.style.backgroundColor = 'rgba(0,0,0,0.5)';
+                dialogOverlay.style.zIndex = '10000';
+                dialogOverlay.style.display = 'flex';
+                dialogOverlay.style.justifyContent = 'center';
+                dialogOverlay.style.alignItems = 'center';
+
+                const dialogBox = document.createElement('div');
+                dialogBox.style.backgroundColor = 'white';
+                dialogBox.style.padding = '20px';
+                dialogBox.style.borderRadius = '8px';
+                dialogBox.style.maxWidth = '90%';
+                dialogBox.style.width = '350px';
+                dialogBox.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)';
+
+                const title = document.createElement('h3');
+                title.textContent = '复制链接';
+                title.style.margin = '0 0 15px 0';
+                title.style.fontSize = '18px';
+
+                const message = document.createElement('p');
+                message.textContent = '请长按下面的链接进行复制：';
+                message.style.marginBottom = '10px';
+
+                const linkContainer = document.createElement('div');
+                linkContainer.style.padding = '10px';
+                linkContainer.style.backgroundColor = '#f5f5f5';
+                linkContainer.style.borderRadius = '4px';
+                linkContainer.style.marginBottom = '15px';
+                linkContainer.style.wordBreak = 'break-all';
+                linkContainer.style.userSelect = 'all'; // 允许选择文本
+
+                const linkText = document.createElement('span');
+                linkText.textContent = textToCopy;
+                linkText.style.fontFamily = 'monospace';
+                linkContainer.appendChild(linkText);
+
+                const closeButton = document.createElement('button');
+                closeButton.textContent = '关闭';
+                closeButton.style.padding = '8px 15px';
+                closeButton.style.backgroundColor = '#4CAF50';
+                closeButton.style.color = 'white';
+                closeButton.style.border = 'none';
+                closeButton.style.borderRadius = '4px';
+                closeButton.style.cursor = 'pointer';
+                closeButton.style.width = '100%';
+                closeButton.style.fontSize = '16px';
+
+                closeButton.onclick = function() {
+                    document.body.removeChild(dialogOverlay);
+                };
+
+                // 添加元素到对话框
+                dialogBox.appendChild(title);
+                dialogBox.appendChild(message);
+                dialogBox.appendChild(linkContainer);
+                dialogBox.appendChild(closeButton);
+                dialogOverlay.appendChild(dialogBox);
+
+                // 添加对话框到页面
+                document.body.appendChild(dialogOverlay);
+
+                // 自动选中文本便于复制
+                const range = document.createRange();
+                range.selectNodeContents(linkText);
+                const selection = window.getSelection();
+                selection.removeAllRanges();
+                selection.addRange(range);
+            }
+
+            // 先尝试使用现代剪贴板 API
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(text)
+                    .then(() => {
+                        alert('链接已复制到剪贴板');
+                    })
+                    .catch(err => {
+                        console.error('复制失败:', err);
+                        // 如果现代API失败，尝试传统方法
+                        tryLegacyCopy();
+                    });
+            } else {
+                // 如果浏览器不支持现代API，尝试传统方法
+                tryLegacyCopy();
+            }
+
+            // 使用传统方法复制
+            function tryLegacyCopy() {
+                // 创建一个临时的textarea元素
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                textarea.style.position = 'fixed';
+                textarea.style.opacity = '0';
+                document.body.appendChild(textarea);
+                textarea.focus();
+                textarea.select();
+
+                let success = false;
+                try {
+                    success = document.execCommand('copy');
+                    if (success) {
+                        alert('链接已复制到剪贴板');
+                    } else {
+                        // 如果传统方法失败，显示对话框让用户手动复制
+                        showCopyDialog(text);
+                    }
+                } catch (err) {
+                    console.error('复制过程出错:', err);
+                    // 显示对话框让用户手动复制
+                    showCopyDialog(text);
+                }
+
+                // 移除临时元素
+                document.body.removeChild(textarea);
+            }
+        }
+
+        // 设置文件输入控件的属性
+        function setupFileInput() {
+            const fileInput = document.getElementById('excelFile');
+            const mobileFileSelectBtn = document.getElementById('mobileFileSelectBtn');
+
+            // 添加文件选择事件监听
+            fileInput.addEventListener('change', function(e) {
+                if (fileInput.files.length > 0) {
+                    const fileName = fileInput.files[0].name;
+                    alert('已选择文件: ' + fileName + '\n\n点击“导入”按钮开始导入数据');
+                }
+            });
+
+            // 如果是移动设备，显示移动设备专用的文件选择按钮
+            if (isMobileDevice()) {
+                mobileFileSelectBtn.style.display = 'block';
+
+                // 针对不同的移动设备调整按钮文本
+                if (isAndroidDevice()) {
+                    mobileFileSelectBtn.textContent = '点击选择Excel文件 (安卓)';
+                } else if (isIOSDevice()) {
+                    mobileFileSelectBtn.textContent = '点击选择Excel文件 (iOS)';
+                }
+            }
+        }
+
+        // 自动保存数据
+        function autoSaveData() {
+            localStorage.setItem('competitionData', JSON.stringify(competitions));
+            console.log('数据已自动保存，时间：', new Date().toLocaleTimeString());
+        }
+
+        // 设置自动保存定时器
+        let autoSaveInterval;
+        function setupAutoSave() {
+            // 每30秒自动保存一次数据
+            autoSaveInterval = setInterval(autoSaveData, 30000);
+
+            // 监听页面可见性变化
+            document.addEventListener('visibilitychange', function() {
+                if (document.visibilityState === 'hidden') {
+                    // 页面切换到后台时保存数据
+                    autoSaveData();
+                    // 在后台时暂停自动保存定时器，节省资源
+                    clearInterval(autoSaveInterval);
+                } else if (document.visibilityState === 'visible') {
+                    // 页面重新可见时恢复自动保存
+                    setupAutoSave();
+                }
+            });
+
+            // 监听页面卸载事件
+            window.addEventListener('beforeunload', function() {
+                // 页面关闭前保存数据
+                autoSaveData();
+            });
+        }
+
+        // 加载数据
+        window.onload = function() {
+            const savedData = localStorage.getItem('competitionData');
+            if (savedData) {
+                try {
+                    competitions = JSON.parse(savedData);
+                    // 确保每个比赛都有files数组
+                    competitions.forEach(comp => {
+                        if (!comp.files) {
+                            // 如果是旧数据格式，转换为新格式
+                            if (comp.fileURL !== undefined || comp.fileDesc !== undefined) {
+                                comp.files = [{
+                                    url: comp.fileURL || '',
+                                    desc: comp.fileDesc || ''
+                                }];
+                                // 删除旧属性
+                                delete comp.fileURL;
+                                delete comp.fileDesc;
+                            } else {
+                                comp.files = [];
+                            }
+                        }
+                        // 确保有category和website字段
+                        if (!comp.category) {
+                            comp.category = '';
+                        }
+                        if (!comp.website) {
+                            comp.website = '';
+                        }
+                        if (!comp.signupTime) {
+                            comp.signupTime = '';
+                        }
+                        if (!comp.competitionTime) {
+                            comp.competitionTime = '';
+                        }
+                    });
+                } catch (error) {
+                    console.error('加载保存的数据时出错:', error);
+                    // 如果加载失败，使用默认数据
+                    alert('恢复保存的数据时出错，将使用默认数据。');
+                }
+            }
+
+            // 如果是移动设备，显示移动设备帮助信息
+            if (isMobileDevice()) {
+                document.getElementById('mobileFileHelp').style.display = 'block';
+            }
+
+            // 设置文件输入控件
+            setupFileInput();
+
+            // 设置自动保存
+            setupAutoSave();
+
+            // 设置模态框点击外部关闭
+            const modal = document.getElementById('addCompetitionModal');
+            window.onclick = function(event) {
+                if (event.target === modal) {
+                    closeAddCompetitionModal();
+                }
+            };
+
+            renderTable();
+        };
+
+        // 当前视图模式: 'all' 或 'starred'
+        let currentView = 'all';
+
+        // 切换选项卡
+        function switchTab(tabName) {
+            currentView = tabName;
+
+            // 更新选项卡样式
+            document.getElementById('allTab').classList.remove('active');
+            document.getElementById('starredTab').classList.remove('active');
+            document.getElementById(tabName + 'Tab').classList.add('active');
+
+            // 重新渲染表格
+            renderTable();
+        }
+
+        // 渲染表格
+        function renderTable() {
+            const tableBody = document.getElementById('competitionBody');
+            const searchInput = document.getElementById('search') ? document.getElementById('search').value.toLowerCase() : '';
+
+            // 清空表格内容
+            tableBody.innerHTML = '';
+
+            // 首先根据当前视图过滤数据
+            let viewFilteredCompetitions = competitions;
+            if (currentView === 'starred') {
+                viewFilteredCompetitions = competitions.filter(comp => comp.starred);
+            }
+
+            // 然后根据搜索条件过滤
+            const filteredCompetitions = viewFilteredCompetitions.filter(comp => {
+                return comp.name.toLowerCase().includes(searchInput) ||
+                       comp.category.toLowerCase().includes(searchInput) ||
+                       comp.id.toString().includes(searchInput);
+            });
+
+            // 如果没有数据，显示提示
+            if (filteredCompetitions.length === 0) {
+                const row = document.createElement('tr');
+                const cell = document.createElement('td');
+                cell.colSpan = 10; // 调整为当前表头的列数，包括新增的复选框列
+
+                // 根据当前视图和搜索条件显示不同的提示
+                if (currentView === 'starred') {
+                    if (searchInput) {
+                        cell.textContent = '没有找到匹配的收藏比赛';
+                    } else {
+                        cell.textContent = '您还没有收藏任何比赛，点击星标可以收藏比赛';
+                    }
+                } else {
+                    if (searchInput) {
+                        cell.textContent = '没有找到匹配的比赛';
+                    } else {
+                        cell.textContent = '无数据';
+                    }
+                }
+
+                cell.style.textAlign = 'center';
+                cell.style.padding = '20px';
+                cell.style.color = '#666';
+                row.appendChild(cell);
+                tableBody.appendChild(row);
+                return;
+            }
+
+            // 创建表格行
+            filteredCompetitions.forEach(comp => {
+                const row = document.createElement('tr');
+                row.dataset.id = comp.id; // 添加data-id属性
+
+                // 添加复选框列
+                const checkboxCell = document.createElement('td');
+                checkboxCell.style.textAlign = 'center';
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'competition-checkbox';
+                checkbox.dataset.id = comp.id;
+                checkboxCell.appendChild(checkbox);
+                row.appendChild(checkboxCell);
+
+                // ID列改为星标列
+                const starCell = document.createElement('td');
+                starCell.style.textAlign = 'center';
+                starCell.style.cursor = 'pointer';
+                const starIcon = document.createElement('span');
+                starIcon.innerHTML = comp.starred ? '★' : '☆';
+                starIcon.style.fontSize = '20px';
+                starIcon.style.color = comp.starred ? 'gold' : '#ccc';
+                starIcon.title = comp.starred ? '取消关注' : '关注此比赛';
+                starIcon.onclick = function() {
+                    comp.starred = !comp.starred;
+                    starIcon.innerHTML = comp.starred ? '★' : '☆';
+                    starIcon.style.color = comp.starred ? 'gold' : '#ccc';
+                    starIcon.title = comp.starred ? '取消关注' : '关注此比赛';
+                    localStorage.setItem('competitionData', JSON.stringify(competitions));
+
+                    // 如果当前是收藏视图，并且取消了收藏，需要重新渲染表格
+                    if (currentView === 'starred' && !comp.starred) {
+                        renderTable();
+                    }
+                };
+                starCell.appendChild(starIcon);
+                row.appendChild(starCell);
+
+                // 类别列
+                const categoryCell = document.createElement('td');
+                categoryCell.textContent = comp.category || '-';
+                row.appendChild(categoryCell);
+
+                // 名称列
+                const nameCell = document.createElement('td');
+                nameCell.textContent = comp.name;
+                row.appendChild(nameCell);
+
+                // 官网列
+                const websiteCell = document.createElement('td');
+                if (comp.website) {
+                    const websiteLink = document.createElement('a');
+                    websiteLink.href = 'javascript:void(0);';
+                    websiteLink.textContent = '复制链接';
+                    websiteLink.className = 'btn-link';
+                    websiteLink.title = '点击复制链接到剪贴板';
+
+                    // 添加点击事件，复制链接到剪贴板
+                    websiteLink.addEventListener('click', function(e) {
+                        e.preventDefault(); // 阻止默认行为
+                        // 保存当前状态
+                        autoSaveData();
+                        // 复制链接到剪贴板
+                        copyToClipboard(comp.website);
+                    });
+
+                    websiteCell.appendChild(websiteLink);
+                } else {
+                    websiteCell.textContent = '-';
+                }
+                row.appendChild(websiteCell);
+
+                // 报名时间列
+                const signupTimeCell = document.createElement('td');
+                signupTimeCell.textContent = comp.signupTime || '-';
+                row.appendChild(signupTimeCell);
+
+                // 比赛时间列
+                const competitionTimeCell = document.createElement('td');
+                competitionTimeCell.textContent = comp.competitionTime || '-';
+                row.appendChild(competitionTimeCell);
+
+                // 文件列
+                const filesCell = document.createElement('td');
+                if (comp.files && comp.files.length > 0) {
+                    const filesList = document.createElement('div');
+                    comp.files.forEach((file, index) => {
+                        if (file.url || file.desc) {
+                            const fileItem = document.createElement('div');
+                            fileItem.classList.add('file-item');
+
+                            if (file.url) {
+                                const fileLink = document.createElement('a');
+                                fileLink.href = 'javascript:void(0);';
+                                fileLink.textContent = (file.desc || '文件 ' + (index + 1)) + ' (复制链接)';
+                                fileLink.className = 'btn-link';
+                                fileLink.title = '点击复制链接到剪贴板';
+
+                                // 添加点击事件，复制链接到剪贴板
+                                fileLink.addEventListener('click', function(e) {
+                                    e.preventDefault(); // 阻止默认行为
+                                    // 保存当前状态
+                                    autoSaveData();
+                                    // 复制链接到剪贴板
+                                    copyToClipboard(file.url);
+                                });
+
+                                fileItem.appendChild(fileLink);
+                            } else if (file.desc) {
+                                fileItem.textContent = file.desc;
+                            }
+
+                            filesList.appendChild(fileItem);
+                        }
+                    });
+                    filesCell.appendChild(filesList);
+                } else {
+                    filesCell.textContent = '-';
+                }
+                row.appendChild(filesCell);
+
+                // 描述列
+                const descCell = document.createElement('td');
+                descCell.textContent = comp.desc || '-';
+                row.appendChild(descCell);
+
+                // 操作列
+                const actionCell = document.createElement('td');
+                actionCell.className = 'action-cell';
+
+                const editBtn = document.createElement('button');
+                editBtn.textContent = '编辑';
+                editBtn.className = 'edit-btn';
+                editBtn.onclick = () => startEdit(comp.id);
+
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = '删除';
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.onclick = () => deleteCompetition(comp.id);
+
+                actionCell.appendChild(editBtn);
+                actionCell.appendChild(deleteBtn);
+                row.appendChild(actionCell);
+
+                // 添加行到表格
+                tableBody.appendChild(row);
+            });
+        }
+
+        // 开始编辑 - 切换为编辑模式
+        function startEdit(id) {
+            // 获取当前查看行
+            const viewRow = document.querySelector(`tr[data-id="${id}"]`);
+            if (!viewRow) return;
+
+            const comp = competitions.find(c => c.id === id);
+            if (!comp) return;
+
+            // 隐藏查看行
+            viewRow.style.display = 'none';
+
+            // 创建编辑行
+            const editRow = document.createElement('tr');
+            editRow.dataset.id = id;
+            editRow.className = "edit-row";
+
+            // 创建文件编辑HTML
+            let filesEditHtml = `<div id="files-${id}">`;
+            if (comp.files && comp.files.length > 0) {
+                comp.files.forEach((file, fileIndex) => {
+                    filesEditHtml += `
+                        <div class="file-item">
+                            <input type="text" value="${file.url || ''}" id="fileURL-${id}-${fileIndex}" placeholder="文件链接">
+                            <input type="text" value="${file.desc || ''}" id="fileDesc-${id}-${fileIndex}" placeholder="文件描述">
+                            <button onclick="removeFile(${id}, ${fileIndex})" class="delete-btn">删除</button>
+                        </div>
+                    `;
+                });
+            } else {
+                // 如果没有文件，至少添加一个空的文件输入
+                filesEditHtml += `
+                    <div class="file-item">
+                        <input type="text" value="" id="fileURL-${id}-0" placeholder="文件链接">
+                        <input type="text" value="" id="fileDesc-${id}-0" placeholder="文件描述">
+                        <button onclick="removeFileInput(this)" class="delete-btn">删除</button>
+                    </div>
+                `;
+            }
+            filesEditHtml += `</div><button onclick="addFileInput('files-${id}', ${id})">添加文件</button>`;
+
+            // 创建类别下拉框
+            const categoryOptions = `
+                <option value="">请选择</option>
+                <option value="一类竞赛" ${comp.category === '一类竞赛' ? 'selected' : ''}>一类竞赛</option>
+                <option value="二类竞赛" ${comp.category === '二类竞赛' ? 'selected' : ''}>二类竞赛</option>
+            `;
+
+            // 构建编辑行HTML
+            editRow.innerHTML = `
+                <td></td> <!-- 复选框列留空 -->
+                <td>${comp.starred ? '★' : '☆'}</td>
+                <td><select id="category-${id}">${categoryOptions}</select></td>
+                <td><input type="text" value="${comp.name || ''}" id="name-${id}" placeholder="比赛名称"></td>
+                <td><input type="text" value="${comp.website || ''}" id="website-${id}" placeholder="官网链接"></td>
+                <td><input type="text" value="${comp.signupTime || ''}" id="signupTime-${id}" placeholder="报名时间，如：2023-09-01 至 2023-09-10"></td>
+                <td><input type="text" value="${comp.competitionTime || ''}" id="competitionTime-${id}" placeholder="比赛时间，如：2023-10-01 至 2023-10-05"></td>
+                <td>${filesEditHtml}</td>
+                <td><textarea id="desc-${id}" placeholder="比赛描述">${comp.desc || ''}</textarea></td>
+                <td class="operation-column">
+                    <button onclick="cancelEdit(${id})" class="cancel-btn">取消</button>
+                    <button onclick="saveEdit(${id})" class="save-btn">保存</button>
+                </td>
+            `;
+
+            // 插入编辑行
+            viewRow.parentNode.insertBefore(editRow, viewRow.nextSibling);
+        }
+
+        // 取消编辑
+        function cancelEdit(id) {
+            const editRow = document.querySelector(`.edit-row[data-id="${id}"]`);
+            const viewRow = document.querySelector(`tr[data-id="${id}"]:not(.edit-row)`);
+
+            if (editRow) {
+                editRow.parentNode.removeChild(editRow);
+            }
+
+            if (viewRow) {
+                viewRow.style.display = '';
+            }
+        }
+
+        // 保存编辑
+        function saveEdit(id) {
+            const index = competitions.findIndex(comp => comp.id === id);
+            if (index === -1) return;
+
+            // 保存数据
+            competitions[index].category = document.getElementById(`category-${id}`).value;
+            competitions[index].name = document.getElementById(`name-${id}`).value;
+            competitions[index].website = document.getElementById(`website-${id}`).value;
+            competitions[index].signupTime = document.getElementById(`signupTime-${id}`).value;
+            competitions[index].competitionTime = document.getElementById(`competitionTime-${id}`).value;
+            competitions[index].desc = document.getElementById(`desc-${id}`).value;
+
+            // 获取所有文件输入
+            const files = [];
+            const fileContainer = document.getElementById(`files-${id}`);
+            const fileItems = fileContainer.querySelectorAll('.file-item');
+
+            fileItems.forEach((item, i) => {
+                try {
+                    const urlElement = document.getElementById(`fileURL-${id}-${i}`);
+                    const descElement = document.getElementById(`fileDesc-${id}-${i}`);
+
+                    if (!urlElement || !descElement) {
+                        console.error(`找不到文件输入元素: fileURL-${id}-${i} 或 fileDesc-${id}-${i}`);
+                        return;
+                    }
+
+                    const url = urlElement.value || '';
+                    const desc = descElement.value || '';
+                    files.push({url, desc});
+                } catch (error) {
+                    console.error('处理文件输入时出错:', error);
+                }
+            });
+
+            competitions[index].files = files;
+
+            localStorage.setItem('competitionData', JSON.stringify(competitions));
+
+            // 重新渲染表格
+            renderTable();
+
+            alert('保存成功!');
+        }
+
+        // 保存比赛
+        function saveCompetition(id) {
+            // 仅保存当前状态到本地存储
+            localStorage.setItem('competitionData', JSON.stringify(competitions));
+            alert('保存成功!');
+        }
+
+        // 删除
+        function deleteCompetition(id) {
+            if (confirm('确定要删除这个比赛吗？')) {
+                competitions = competitions.filter(comp => comp.id !== id);
+
+                // 重新排序ID
+                reorderCompetitionIds();
+
+                localStorage.setItem('competitionData', JSON.stringify(competitions));
+                renderTable();
+            }
+        }
+
+        // 搜索
+        function searchCompetitions() {
+            const searchTerm = document.getElementById('search').value.toLowerCase();
+
+            // 即使搜索条件为空，也调用renderTable()，因为它会根据当前视图过滤
+            renderTable();
+        }
+
+        // 为文件部分添加新的输入字段
+        function addFileInput(containerId, compId) {
+            const container = document.getElementById(containerId);
+            const fileItem = document.createElement('div');
+            fileItem.className = 'file-item';
+
+            // 获取当前容器中已有的文件项数量
+            const existingItems = container.querySelectorAll('.file-item').length;
+
+            // 为新添加的输入框分配唯一ID
+            const urlId = compId ? `fileURL-${compId}-${existingItems}` : '';
+            const descId = compId ? `fileDesc-${compId}-${existingItems}` : '';
+
+            fileItem.innerHTML = `
+                <input type="text" class="form-control" placeholder="文件链接" ${urlId ? `id="${urlId}"` : ''}>
+                <input type="text" class="form-control" placeholder="文件描述" ${descId ? `id="${descId}"` : ''}>
+                <button onclick="removeFileInput(this)" class="delete-btn">移除</button>
+            `;
+            container.appendChild(fileItem);
+        }
+
+        // 移除文件输入字段（仅针对未保存的新输入）
+        function removeFileInput(button) {
+            const fileItem = button.parentNode;
+            fileItem.parentNode.removeChild(fileItem);
+
+            // 确保至少有一个文件输入字段
+            const container = document.getElementById('newFiles');
+            if (container.querySelectorAll('.file-item').length === 0) {
+                addFileInput('newFiles');
+            }
+        }
+
+        // 删除已保存的文件
+        function removeFile(compId, fileIndex) {
+            const index = competitions.findIndex(comp => comp.id === compId);
+            if (index !== -1) {
+                competitions[index].files.splice(fileIndex, 1);
+                localStorage.setItem('competitionData', JSON.stringify(competitions));
+                renderTable();
+            }
+        }
+
+        // 重新排序比赛ID
+        function reorderCompetitionIds() {
+            // 按照数组索引重新分配ID，从1开始
+            competitions.forEach((comp, index) => {
+                comp.id = index + 1;
+            });
+        }
+
+        // 全选/取消全选
+        function toggleSelectAll() {
+            const selectAllCheckbox = document.getElementById('selectAll');
+            const checkboxes = document.querySelectorAll('.competition-checkbox');
+
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAllCheckbox.checked;
+            });
+        }
+
+        // 批量删除选中的比赛
+        function batchDeleteCompetitions() {
+            const selectedCheckboxes = document.querySelectorAll('.competition-checkbox:checked');
+
+            if (selectedCheckboxes.length === 0) {
+                alert('请先选择要删除的比赛');
+                return;
+            }
+
+            if (confirm(`确定要删除选中的 ${selectedCheckboxes.length} 个比赛吗？`)) {
+                // 收集所有选中的ID
+                const selectedIds = Array.from(selectedCheckboxes).map(checkbox => parseInt(checkbox.dataset.id));
+
+                // 删除选中的比赛
+                competitions = competitions.filter(comp => !selectedIds.includes(comp.id));
+
+                // 重新排序 ID
+                reorderCompetitionIds();
+
+                // 保存并重新渲染
+                localStorage.setItem('competitionData', JSON.stringify(competitions));
+                renderTable();
+
+                // 重置全选复选框
+                document.getElementById('selectAll').checked = false;
+
+                alert('批量删除成功');
+            }
+        }
+
+        // 删除导入的数据
+        function deleteImportedData() {
+            // 检查是否有导入的数据
+            const savedData = localStorage.getItem('competitionData');
+
+            if (!savedData) {
+                alert('没有找到导入的数据');
+                return;
+            }
+
+            if (confirm('确定要删除所有导入的数据吗？这将恢复到初始状态。')) {
+                // 恢复到初始数据
+                competitions = [
+                    {
+                        id: 1,
+                        category: "一类竞赛",
+                        name: "篮球锦标赛",
+                        website: "https://basketball.example.com",
+                        signupTime: "2023-09-01 至 2023-09-10",
+                        competitionTime: "2023-10-15 至 2023-10-20",
+                        files: [
+                            {url: "https://example.com/basketball.pdf", desc: "篮球赛规则.pdf"},
+                            {url: "https://example.com/basketball-schedule.doc", desc: "篮球赛日程.doc"}
+                        ],
+                        desc: "全国高校篮球锦标赛",
+                        starred: false
+                    },
+                    {
+                        id: 2,
+                        category: "二类竞赛",
+                        name: "足球友谊赛",
+                        website: "https://football.example.com",
+                        signupTime: "2023-09-15 至 2023-09-25",
+                        competitionTime: "2023-11-01 至 2023-11-05",
+                        files: [
+                            {url: "https://example.com/football.doc", desc: "足球比赛安排.doc"}
+                        ],
+                        desc: "校际足球友谊比赛",
+                        starred: false
+                    }
+                ];
+
+                // 保存并重新渲染
+                localStorage.setItem('competitionData', JSON.stringify(competitions));
+                renderTable();
+
+                alert('导入数据已清除，恢复到初始状态');
+            }
+        }
+
+        // 显示添加比赛模态框
+        function showAddCompetitionModal() {
+            // 清空表单
+            document.getElementById('newName').value = '';
+            document.getElementById('newCategory').value = '';
+            document.getElementById('newWebsite').value = '';
+            document.getElementById('newSignupTime').value = '';
+            document.getElementById('newCompetitionTime').value = '';
+            document.getElementById('newDesc').value = '';
+
+            // 重置文件输入
+            const newFiles = document.getElementById('newFiles');
+            newFiles.innerHTML = '';
+
+            // 添加一个文件输入字段
+            addFileInput('newFiles');
+
+            // 显示模态框
+            document.getElementById('addCompetitionModal').style.display = 'block';
+
+            // 聚焦到名称输入框
+            setTimeout(() => {
+                document.getElementById('newName').focus();
+            }, 300);
+        }
+
+        // 关闭添加比赛模态框
+        function closeAddCompetitionModal() {
+            document.getElementById('addCompetitionModal').style.display = 'none';
+        }
+
+        // 添加竞赛
+        function addCompetition() {
+            const newName = document.getElementById('newName');
+            const newCategory = document.getElementById('newCategory');
+            const newWebsite = document.getElementById('newWebsite');
+            const newSignupTime = document.getElementById('newSignupTime');
+            const newCompetitionTime = document.getElementById('newCompetitionTime');
+            const newDesc = document.getElementById('newDesc');
+            const newFileInputs = document.querySelectorAll('#newFiles .file-item');
+
+            // 验证比赛名称必填
+            if (!newName.value.trim()) {
+                alert('比赛名称为必填项');
+                newName.focus();
+                return;
+            }
+
+            // 计算新ID
+            const newId = competitions.length > 0
+                ? Math.max(...competitions.map(comp => parseInt(comp.id))) + 1
+                : 1;
+
+            // 处理文件输入
+            const files = [];
+            newFileInputs.forEach(group => {
+                const urlInput = group.querySelectorAll('input')[0];
+                const descInput = group.querySelectorAll('input')[1];
+
+                if (urlInput.value.trim() || descInput.value.trim()) {
+                    files.push({
+                        url: urlInput.value.trim(),
+                        desc: descInput.value.trim()
+                    });
+                }
+            });
+
+            // 创建新竞赛对象
+            const newCompetition = {
+                id: newId.toString(),
+                name: newName.value.trim(),
+                category: newCategory.value.trim(),
+                website: newWebsite.value.trim(),
+                signupTime: newSignupTime.value.trim(),
+                competitionTime: newCompetitionTime.value.trim(),
+                desc: newDesc.value.trim(),
+                files: files,
+                starred: false
+            };
+
+            // 添加到竞赛数组
+            competitions.push(newCompetition);
+
+            // 保存到本地存储
+            localStorage.setItem('competitionData', JSON.stringify(competitions));
+
+            // 关闭模态框
+            closeAddCompetitionModal();
+
+            // 刷新表格
+            renderTable();
+
+            // 显示成功消息
+            alert('比赛添加成功!');
+        }
+    </script>
+</body>
+</html>
